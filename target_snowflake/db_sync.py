@@ -1,18 +1,18 @@
 import json
-import sys
-import snowflake.connector
 import re
+import sys
 import time
+from typing import List, Dict, Union, Tuple, Set
+
+import snowflake.connector
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
-
-from typing import List, Dict, Union, Tuple, Set
 from singer import get_logger
+
 from target_snowflake import flattening
 from target_snowflake import stream_utils
-from target_snowflake.file_format import FileFormat, FileFormatTypes
-
 from target_snowflake.exceptions import TooManyRecordsException, PrimaryKeyNotFoundException
+from target_snowflake.file_format import FileFormat, FileFormatTypes
 from target_snowflake.upload_clients.s3_upload_client import S3UploadClient
 from target_snowflake.upload_clients.snowflake_upload_client import SnowflakeUploadClient
 
@@ -295,6 +295,7 @@ class DbSync:
 
         credentials = {}
         if 'private_key_path' in self.connection_config:
+            self.logger.info('Authenticating with key pair')
             with open(self.connection_config['private_key_path'], 'rb') as private_key_file:
                 private_key = serialization.load_pem_private_key(
                     private_key_file.read(),
@@ -306,6 +307,7 @@ class DbSync:
                     encryption_algorithm=serialization.NoEncryption())
                 credentials = {'private_key': private_key_bytes}
         elif 'password' in self.connection_config:
+            self.logger.info('Authenticating with username and password')
             credentials = {'password': self.connection_config['password']}
         return snowflake.connector.connect(
             user=self.connection_config['user'],
