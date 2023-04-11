@@ -3,6 +3,8 @@ import sys
 import snowflake.connector
 import re
 import time
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
 
 from typing import List, Dict, Union, Tuple, Set
 from singer import get_logger
@@ -291,9 +293,22 @@ class DbSync:
         if self.stream_schema_message:
             stream = self.stream_schema_message['stream']
 
+        credentials = {}
+        if 'password' in self.connection_config:
+            credentials = {'password': self.connection_config['password']}
+        elif 'private_key_path' in self.connection_config:
+            with open(self.connection_config['private_key_path'], 'rb') as private_key_file:
+                private_key = serialization.load_pem_private_key(
+                    private_key_file.read(),
+                    password=self.connection_config['private_key_passphrase'].encode() if 'private_key_passphrase' in self.connection_config else None,
+                    backend=default_backend())
+                private_key_bytes = private_key.private_bytes(
+                    encoding=serialization.Encoding.DER,
+                    format=serialization.PrivateFormat.PKCS8,
+                    encryption_algorithm=serialization.NoEncryption())
+                credentials = {'private_key': private_key_bytes}
         return snowflake.connector.connect(
             user=self.connection_config['user'],
-            password=self.connection_config['password'],
             account=self.connection_config['account'],
             database=self.connection_config['dbname'],
             warehouse=self.connection_config['warehouse'],
@@ -306,7 +321,8 @@ class DbSync:
                                               database=self.connection_config['dbname'],
                                               schema=self.schema_name,
                                               table=self.table_name(stream, False, True))
-            }
+            },
+            **credentials
         )
 
     def query(self, query: Union[str, List[str]], params: Dict = None, max_records=0) -> List[Dict]:
