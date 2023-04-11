@@ -294,9 +294,7 @@ class DbSync:
             stream = self.stream_schema_message['stream']
 
         credentials = {}
-        if 'password' in self.connection_config:
-            credentials = {'password': self.connection_config['password']}
-        elif 'private_key_path' in self.connection_config:
+        if 'private_key_path' in self.connection_config:
             with open(self.connection_config['private_key_path'], 'rb') as private_key_file:
                 private_key = serialization.load_pem_private_key(
                     private_key_file.read(),
@@ -307,6 +305,8 @@ class DbSync:
                     format=serialization.PrivateFormat.PKCS8,
                     encryption_algorithm=serialization.NoEncryption())
                 credentials = {'private_key': private_key_bytes}
+        elif 'password' in self.connection_config:
+            credentials = {'password': self.connection_config['password']}
         return snowflake.connector.connect(
             user=self.connection_config['user'],
             account=self.connection_config['account'],
